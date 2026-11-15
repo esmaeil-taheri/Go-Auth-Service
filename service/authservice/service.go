@@ -3,18 +3,18 @@ package authservice
 import (
 	"strings"
 	"time"
-	
-	"gameapp/entity"
+
+	"gameauth_v2/entity"
 
 	"github.com/golang-jwt/jwt/v4"
 )
 
 type Config struct {
-	SignKey              string
-	AccessExpirationTime time.Duration
-	RefreshExpirationTime time.Duration
-	AccessSubject string
-	RefreshSubject string
+	SignKey               string        `koanf:"sign_key"`
+	AccessExpirationTime  time.Duration `koanf:"access_expiration_time"`
+	RefreshExpirationTime time.Duration `koanf:"refresh_expiration_time"`
+	AccessSubject         string        `koanf:"access_subject"`
+	RefreshSubject        string        `koanf:"refresh_subject"`
 }
 
 type Service struct {
@@ -57,7 +57,7 @@ func (s Service) createToken(userID uint, subject string, expireDuration time.Du
 
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: subject,
+			Subject:   subject,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expireDuration)),
 		},
 		UserID: userID,

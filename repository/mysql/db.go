@@ -9,28 +9,27 @@ import (
 )
 
 type Config struct {
-	Username string
-	Password string
-	Port int
-	Host string
-	DBName string
+	Username string `koanf:"username"`
+	Password string `koanf:"password"`
+	Host     string `koanf:"host"`
+	Port     uint   `koanf:"port"`
+	DBName   string `koanf:"db_name"`
 }
 
 type MySQLDB struct {
 	config Config
-	db *sql.DB
+	db     *sql.DB
 }
 
 func New(config Config) *MySQLDB {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", 
-	config.Username, config.Password, config.Host, config.Port, config.DBName)
-	
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true",
+		config.Username, config.Password, config.Host, config.Port, config.DBName)
+
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		panic(fmt.Errorf("can't open mysql db: %v", err))
+		panic(fmt.Errorf("DB connection Failed %v", err))
 	}
 
-	// See "Important settings" section.
 	db.SetConnMaxLifetime(time.Minute * 3)
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)

@@ -1,6 +1,7 @@
 package richerror
 
 type Kind int
+type Op string
 
 const (
 	KindInvalid Kind = iota + 1
@@ -10,31 +11,29 @@ const (
 )
 
 type RichError struct {
-	operation    Op
-	wrappedError error
-	message      string
-	kind         Kind
-	meta         map[string]interface{}
+	operation Op
+	wrapperError error
+	message string
+	kind Kind
+	meta map[string]interface{}
 }
-
-type Op string
 
 func New(op Op) RichError {
 	return RichError{operation: op}
 }
 
 func (r RichError) WithOp(op Op) RichError {
-	r.operation = op
+	r.operation = op 
 	return r
 }
 
 func (r RichError) WithErr(err error) RichError {
-	r.wrappedError = err
+	r.wrapperError = err
 	return r
 }
 
-func (r RichError) WithMessage(message string) RichError {
-	r.message = message
+func (r RichError) WithMsg(msg string) RichError {
+	r.message = msg
 	return r
 }
 
@@ -57,7 +56,7 @@ func (r RichError) Kind() Kind {
 		return r.kind
 	}
 
-	re, ok := r.wrappedError.(RichError)
+	re, ok := r.wrapperError.(RichError)
 	if !ok {
 		return 0
 	}
@@ -70,10 +69,11 @@ func (r RichError) Message() string {
 		return r.message
 	}
 
-	re, ok := r.wrappedError.(RichError)
+	re, ok := r.wrapperError.(RichError)
 	if !ok {
-		return r.wrappedError.Error()
+		return r.wrapperError.Error()
 	}
 
 	return re.Message()
+
 }

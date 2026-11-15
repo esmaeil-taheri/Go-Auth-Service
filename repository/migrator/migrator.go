@@ -3,22 +3,19 @@ package migrator
 import (
 	"database/sql"
 	"fmt"
-	"gameapp/repository/mysql"
+	"gameauth_v2/repository/mysql"
+
 	migrate "github.com/rubenv/sql-migrate"
 )
 
 type Migrator struct {
-	dialect    string
-	dbConfig   mysql.Config
+	dialect string
+	dbConfig mysql.Config
 	migrations *migrate.FileMigrationSource
 }
 
-// TODO - set migration table name
-// TODO - add limit to Up and Down method
-
 func New(dbConfig mysql.Config) Migrator {
-	// OR: Read migrations from a folder:
-	migrations := &migrate.FileMigrationSource{
+	migrations := &migrate.FileMigrationSource {
 		Dir: "./repository/mysql/migrations",
 	}
 

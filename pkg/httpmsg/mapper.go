@@ -1,19 +1,17 @@
 package httpmsg
 
 import (
-	"gameapp/pkg/richerror"
+	"gameauth_v2/pkg/richerror"
 	"net/http"
 )
-
 
 func Error(err error) (message string, code int) {
 	switch err.(type) {
 	case richerror.RichError:
 		re := err.(richerror.RichError)
 
-		
 		msg := re.Message()
-		code := mapKindToHTTPStatusCode(re.Kind())
+		code := mapKinparamHTTPStatusCode(re.Kind())
 		if code >= 500 {
 			msg = "internal server error"
 		}
@@ -21,10 +19,10 @@ func Error(err error) (message string, code int) {
 	default:
 		return err.Error(), http.StatusBadRequest
 	}
-	
+
 }
 
-func mapKindToHTTPStatusCode(king richerror.Kind) int {
+func mapKinparamHTTPStatusCode(king richerror.Kind) int {
 	switch king {
 	case richerror.KindInvalid:
 		return http.StatusUnprocessableEntity
