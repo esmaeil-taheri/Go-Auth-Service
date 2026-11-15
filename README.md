@@ -1,125 +1,62 @@
-# GameApp
+# Authentication API
 
-Backend for a quiz game, written in Go with the [Echo](https://echo.labstack.com/) framework.
+A simple authentication project built with Go, Echo, and MySQL. It supports user registration, login with JWT access and refresh tokens, and an authenticated profile endpoint.
 
-> ⚠️ This project is under active development and will be completed over time. Currently only user authentication (register, login, profile) is implemented — the game logic itself has not been added yet.
+## Run locally
 
----
+Install Go (see `go.mod` for the required version) and Docker with Docker Compose.
 
-## Architecture
-
-The project follows a **layered (Clean-style) architecture** so each layer has a single, well-defined responsibility, and layers depend on each other through **interfaces** rather than concrete implementations. This keeps the code testable and lets components be swapped out (e.g. changing the database).
-
-```
-main.go                      entry point; builds config, wires services, runs the server
-│
-├── config/                  application-wide configuration structs
-│
-├── entity/                  domain models (User, Game, Question, Category, Player)
-│                            no dependency on the database or HTTP
-│
-├── delivery/httpserver/     delivery layer
-│                            HTTP handlers, routing and middleware — only connects
-│                            input/output to the services, holds no business logic
-│
-├── service/                 business-logic (use-case) layer
-│   ├── userservice/         register, login, profile + validation and domain rules
-│   └── authservice/         JWT token generation and validation (access / refresh)
-│
-├── repository/mysql/        data-access layer; the MySQL implementation of the interfaces
-│   └── migrations/          database migration files
-│
-└── pkg/                     generic, reusable utilities
-    ├── phonenumber/         phone-number validation
-    └── security/password/   password hashing and comparison with bcrypt
-```
-
-### Request flow (example: Register)
-
-```
-HTTP Request
-   → delivery/httpserver (bind request)
-      → service/userservice (validation, password hashing, business rules)
-         → repository/mysql (persist to database)
-      ← service (build response / tokens)
-   ← delivery (JSON response)
-```
-
-### Key principle: Dependency Inversion
-
-The `service` layer **defines its own interfaces** such as `Repository` and `AuthGenerator`, and the `repository` and `authservice` layers implement them. The final wiring happens in `main.go`. As a result, the service has no direct dependency on MySQL or JWT.
-
----
-
-## Getting Started
-
-### Prerequisites
-- Go 1.24+
-- Docker (for MySQL)
-
-### Run the database
-
-```bash
+```sh
 docker compose up -d
+go run .
 ```
 
-### Run the application
+Wait for MySQL to become healthy before starting the application. Database migrations run automatically on startup. The API listens on `http://localhost:8080`.
 
-```bash
-go run main.go
+The application currently uses the settings defined in `main.go`, including the database connection and JWT signing key. Although it loads `config.yml`, those loaded settings are not yet used to configure the services. Replace the development credentials and signing key before deploying.
+
+## Endpoints
+
+| Method | Path | Description |
+| --- | --- | --- |
+| GET | `/health-check` | Check service health |
+| POST | `/users/register` | Register with `name`, `phone_number`, and `password` |
+| POST | `/users/login` | Log in with `phone_number` and `password` |
+| GET | `/users/profile` | Get the current user's profile |
+
+Send JSON request bodies with `Content-Type: application/json`. For the profile endpoint, include the access token in the `Authorization: Bearer <access_token>` header.
+
+Login returns both access and refresh tokens. There is currently no endpoint for exchanging a refresh token.
+
+## Project architecture
+
+This is a single Go application with a layered architecture. HTTP handling, authentication logic, and database access live in separate packages, while `main.go` creates their dependencies and connects them together.
+
+| Package | Responsibility |
+| --- | --- |
+| `delivery/httpserver` | Start Echo, register routes, and install middleware |
+| `delivery/httpserver/userhandler` | Decode requests, call validation and services, and return HTTP responses |
+| `delivery/httpserver/middleware` | Authenticate requests to protected routes |
+| `validator/uservalidator` | Validate request fields and check phone number uniqueness |
+| `service/userservice` | Implement registration, login, and profile retrieval |
+| `service/authservice` | Create and parse JWTs |
+| `repository/mysql` | Execute SQL queries and map rows to users |
+| `repository/migrator` | Apply database schema migrations |
+| `entity` | Define the user model |
+| `param` | Define request and response structures |
+| `pkg` | Share password hashing and error handling helpers |
+| `config` | Define configuration types and load settings |
+
+The normal request flow is:
+
+```text
+HTTP request
+  -> Echo route and middleware
+  -> handler -> request validator
+  -> user service -> repository -> MySQL
+  -> handler -> JSON response
 ```
 
-The server starts on port `8080`.
+Registration validates the submitted fields, checks whether the phone number is already registered, hashes the password with bcrypt, and saves the user. Login loads the user, compares the password hash, and creates access and refresh tokens. Profile requests pass through JWT middleware before the handler requests the user identified by the token.
 
----
-
-## Migrations
-
-Migrations are managed with [`sql-migrate`](https://github.com/rubenv/sql-migrate). Its configuration lives in `repository/mysql/dbconfig.yml`.
-
-Install the tool:
-
-```bash
-go install github.com/rubenv/sql-migrate/...@latest
-```
-
-Commands (run from the project root, using `dbconfig.yml`):
-
-Apply all pending migrations:
-
-```bash
-sql-migrate up -config=repository/mysql/dbconfig.yml -env=production
-```
-
-Roll back the most recent migration (one step down):
-
-```bash
-sql-migrate down -config=repository/mysql/dbconfig.yml -env=production -limit=1
-```
-
-Show migration status (applied / pending):
-
-```bash
-sql-migrate status -config=repository/mysql/dbconfig.yml -env=production
-```
-
----
-
-## API
-
-| Method | Path | Description | Auth |
-|--------|------|-------------|------|
-| GET  | `/health-check`   | Service health check     | No |
-| POST | `/users/register` | Register a user          | No |
-| POST | `/users/login`    | Log in and get tokens    | No |
-| GET  | `/users/profile`  | View profile             | JWT (`Authorization` header) |
-
----
-
-## Roadmap
-
-Planned additions:
-
-- [ ] **Rich Error** — a richer error type carrying a code, message and metadata instead of raw `fmt.Errorf`, so the HTTP layer can map to the correct status code (`400` / `401` / `500`).
-- [ ] **`validation` package** — move validation logic out of the services into a dedicated, organized layer.
-- [ ] **Complete the game logic** — implement the existing entities (`Game`, `Question`, `Category`, `Player`): creating games, managing questions, player answers and scoring.
+The user service declares small `Repository` and `AuthGenerator` interfaces for the operations it needs. The MySQL repository and authentication service implement those interfaces. This keeps SQL and Echo out of the user service and allows service tests to substitute small fake implementations. Dependencies are passed through constructors; a dependency injection framework is unnecessary here.
